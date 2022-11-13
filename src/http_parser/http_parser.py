@@ -2,7 +2,7 @@
 from http_parser.request import Request
 from http_parser.response import Response
 from http_parser.typings import RequestLine
-from http_parser.constants import METHODS_MAPPING, VERSIONS_MAPPING, HTTPMethods, HTTPVersions
+from http_parser.constants import METHODS_MAPPING_BYTES, VERSIONS_MAPPING, HTTPMethods, HTTPVersions
 
 """
 HTTP REQUEST FORMAT
@@ -59,9 +59,9 @@ def _serialize_status_line(resp: Response) -> bytes:
 
     status_line: list[bytes] = []
     status_line_values: list[str] = [
-        resp.version.value, 
-        str(resp._status_code.value), # type: ignore
-        resp._status_code.phrase] # type: ignore
+        resp.version.value,
+        str(resp._status_code.value),  # type: ignore
+        resp._status_code.phrase]  # type: ignore
     for status in status_line_values:
         status_line.append(bytes(status, encoding="ascii"))
         status_line.append(HTTPParser.SPACE)
@@ -94,7 +94,7 @@ def _parse_request_line(request_line: bytes) -> RequestLine:
 
     components = request_line.split()
     request_line_parsed: RequestLine = {
-        "method": METHODS_MAPPING.get(components[0], HTTPMethods.UNKNOWN),
+        "method": METHODS_MAPPING_BYTES.get(components[0], HTTPMethods.UNKNOWN),
         "url": str(components[1], encoding="ascii"),
         "version": VERSIONS_MAPPING.get(components[2], HTTPVersions.UNKNOWN),
     }

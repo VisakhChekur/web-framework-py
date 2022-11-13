@@ -3,23 +3,21 @@ import logging
 from socket import socket
 from typing import Any, Callable
 
-from http_parser.constants import HTTPMethods
-from http_parser.response import Response
-from http_parser.request import Request
-from server.server import make_server, Server
-from server.socket_request import SocketMessage
 from base_controller import BaseController
-from http_parser.http_parser import HTTPParser
-from url_parser.url_parser import parse_url
-from exceptions.exceptions import MethodNotImplemented
 from default_response import default_responses
+from exceptions.exceptions import MethodNotImplemented
+from http_parser.constants import METHODS_MAPPING_STR, HTTPMethods
+from http_parser.http_parser import HTTPParser
+from http_parser.request import Request
+from http_parser.response import Response
+from server.server import Server, make_server
+from server.socket_request import SocketMessage
+from typings.typings import ROUTED_METHOD, RoutedMethodDetails
+from url_parser.url_parser import parse_url
 
 TCP_CONNECTIONS_LIMIT = 5
 HOSTNAME = ''
 PORT = 80
-
-
-ROUTED_METHOD = Callable[..., None]
 
 
 class App:
@@ -27,7 +25,8 @@ class App:
     def __init__(self):
 
         self._controllers: dict[str, BaseController] = {}
-        self._routes: dict[str, dict[str, ROUTED_METHOD]] = {}
+        # Controller -> path -> RoutedMethodDetails
+        self._routes: dict[str, dict[str, RoutedMethodDetails]] = {}
 
     def run(self):
 
@@ -40,10 +39,10 @@ class App:
                 response = self._route_request(request)
                 self._send_response(response, rec_msg.conn)
 
-    def route(self, path: str = "") -> Callable[..., ROUTED_METHOD]:
+    def route(self, path: str = "", methods: list[str] | None = None) -> Callable[..., ROUTED_METHOD]:
 
         def decorator(func: ROUTED_METHOD) -> ROUTED_METHOD:
-            self._register_path(path, func)
+            self._register_path(path, methods, func)
 
             @functools.wraps(func)
             def wrapped(*args: Any, **kwargs: Any):
@@ -62,10 +61,12 @@ class App:
                 controller_name = ""
             self._controllers[controller_name] = controller
 
-    def _register_path(self, path: str, func: ROUTED_METHOD):
+    def _register_path(self, path: str, methods: list[str] | None, func: ROUTED_METHOD):
         """Maps the given function to the path in the implied controller."""
 
         class_name = self._get_class_name(func)
+        mapped_methods = self._methods_path_register(methods, func)
+
         # This is a shit name. Idk a better way to name it.
         class_in_route = self._routes.setdefault(class_name, {})
 
@@ -77,7 +78,22 @@ class App:
         if path in class_in_route:
             raise ValueError(
                 f"'{path}'was set more than once on the same controller")
-        class_in_route[path] = func
+        class_in_route[path] = {"func": func, "methods": mapped_methods}
+
+    def _methods_path_register(self, methods: list[str] | None, func: ROUTED_METHOD) -> list[HTTPMethods]:
+        """Maps the given methods to the HTTPMethods."""
+
+        try:
+            if methods:
+                return [METHODS_MAPPING_STR[method.upper()] for method in methods]
+        except KeyError:
+            raise ValueError(
+                f"invalid values found in methods for '{func.__qualname__}'")
+        try:
+            return [METHODS_MAPPING_STR[func.__name__.upper()]]
+        except KeyError:
+            raise ValueError(
+                f"'{func.__qualname__}' must provide methods or must have the same name as an HTTP method")
 
     def _route_request(self, request: Request) -> Response:
         """Routes the request to the correct controller and method."""
@@ -85,10 +101,9 @@ class App:
         try:
             parsed_url = parse_url(request.url)
             controller = self._controllers[parsed_url.controller_path]
-            # http_method = self._get_http_method(request.method, controller)
-            method = self._get_method(controller, parsed_url.path)
+            method = self._get_method(
+                controller, parsed_url.path, request.method)
             resp = Response(request.http_version)
-            # http_method(request, resp)
             method(controller, request, resp)
             return resp
         except KeyError:
@@ -99,24 +114,15 @@ class App:
             logging.exception(e)
             return default_responses.InternalServerError(request.http_version)
 
-    def _get_method(self, controller: BaseController, path: str):
+    def _get_method(self, controller: BaseController, path: str, method: HTTPMethods):
 
         controller_name = controller.__class__.__name__.lower()
-        return self._routes[controller_name][path]
+        paths = self._routes[controller_name][path]
 
-    def _get_http_method(self, http_method: HTTPMethods, controller: BaseController):
-
-        match http_method.value:
-            case "GET":
-                return controller.get
-            case "POST":
-                return controller.post
-            case "PUT":
-                return controller.put
-            case "DELETE":
-                return controller.delete
-            case _:
-                raise MethodNotImplemented("")
+        # Check if method is supported
+        if method in paths["methods"]:
+            return paths["func"]
+        raise MethodNotImplemented(method.value)
 
     def _send_response(self, resp: Response, conn: socket):
 

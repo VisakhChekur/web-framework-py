@@ -20,17 +20,8 @@ class HTTPMethods(Enum):
     UNKNOWN = "UNKNOWN"
 
 
-METHODS_MAPPING = {bytes(member.value, encoding="ascii")
-                         : member for member in HTTPMethods}
-VERSIONS_MAPPING = {bytes(member.value, encoding="ascii")
-                          : member for member in HTTPVersions}
+METHODS_MAPPING_STR = {member.value: member for member in HTTPMethods}
+METHODS_MAPPING_BYTES = {
+    bytes(member.value, encoding="ascii"): member for member in HTTPMethods}
+VERSIONS_MAPPING = {bytes(member.value, encoding="ascii")                    : member for member in HTTPVersions}
 STATUS_CODE_MAPPING = {member.value: member for member in HTTPStatus}
-
-# Ensure that the members in the enums and the dictionary are
-# in sync
-assert set(METHODS_MAPPING.keys()) == {
-    bytes(member.value, encoding="utf-8") for member in HTTPMethods
-}, "methods dictionary doesn't match HTTPMethods enum"
-assert set(VERSIONS_MAPPING.keys()) == {
-    bytes(member.value, encoding="utf-8") for member in HTTPVersions
-}, "versions dictionary doesn't match HTTPVersions enum"
