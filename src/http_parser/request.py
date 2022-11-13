@@ -1,6 +1,5 @@
 from http_parser.constants import HTTPMethods, HTTPVersions
 
-
 class Request:
     def __init__(
         self,

@@ -1,4 +1,5 @@
 from enum import Enum
+from http import HTTPStatus
 
 
 class HTTPVersions(Enum):
@@ -19,32 +20,17 @@ class HTTPMethods(Enum):
     UNKNOWN = "UNKNOWN"
 
 
-methods = {
-    b"GET": HTTPMethods.GET,
-    b"POST": HTTPMethods.POST,
-    b"PUT": HTTPMethods.PUT,
-    b"DELETE": HTTPMethods.DELETE,
-    b"UNKNOWN": HTTPMethods.UNKNOWN,
-}
-versions = {
-    b"HTTP/1": HTTPVersions.HTTP_1,
-    b"HTTP/1.1": HTTPVersions.HTTP_1_1,
-    b"HTTP/2": HTTPVersions.HTTP_2,
-    b"HTTP/3": HTTPVersions.HTTP_3,
-    b"UNKNOWN": HTTPVersions.UNKNOWN,
-}
-
-status_codes_phrases = {
-    200: "OK",
-    404: "Not Found",
-    500: "Internal Server Error"
-}
+METHODS_MAPPING = {bytes(member.value, encoding="ascii")
+                         : member for member in HTTPMethods}
+VERSIONS_MAPPING = {bytes(member.value, encoding="ascii")
+                          : member for member in HTTPVersions}
+STATUS_CODE_MAPPING = {member.value: member for member in HTTPStatus}
 
 # Ensure that the members in the enums and the dictionary are
 # in sync
-assert set(methods.keys()) == {
+assert set(METHODS_MAPPING.keys()) == {
     bytes(member.value, encoding="utf-8") for member in HTTPMethods
 }, "methods dictionary doesn't match HTTPMethods enum"
-assert set(versions.keys()) == {
+assert set(VERSIONS_MAPPING.keys()) == {
     bytes(member.value, encoding="utf-8") for member in HTTPVersions
 }, "versions dictionary doesn't match HTTPVersions enum"

@@ -2,7 +2,7 @@
 from http_parser.request import Request
 from http_parser.response import Response
 from http_parser.typings import RequestLine
-from http_parser.constants import methods, versions, HTTPMethods, HTTPVersions
+from http_parser.constants import METHODS_MAPPING, VERSIONS_MAPPING, HTTPMethods, HTTPVersions
 
 """
 HTTP REQUEST FORMAT
@@ -28,13 +28,13 @@ class HTTPParser:
             HTTPParser.DOUBLE_CARRIAGE_NEWLINE, 1)
         request_metadata_lines = request_metadata.split(
             HTTPParser.CARRIAGE_NEWLINE)
-        request_line = _parse_request_line(request_metadata_lines[0])
+        request_line_details = _parse_request_line(request_metadata_lines[0])
         headers = _parse_headers(request_metadata_lines[1:])
 
         return Request(
-            request_line["method"],
-            request_line["url"],
-            request_line["version"],
+            request_line_details["method"],
+            request_line_details["url"],
+            request_line_details["version"],
             headers=headers if headers else None,
             data=data if data else None,
         )
@@ -55,11 +55,13 @@ class HTTPParser:
         return b"".join(serialized_resp)
 
 
-def _serialize_status_line(response: Response) -> bytes:
+def _serialize_status_line(resp: Response) -> bytes:
 
     status_line: list[bytes] = []
     status_line_values: list[str] = [
-        response.version.value, str(response.status_code), response.phrase]
+        resp.version.value, 
+        str(resp._status_code.value), # type: ignore
+        resp._status_code.phrase] # type: ignore
     for status in status_line_values:
         status_line.append(bytes(status, encoding="ascii"))
         status_line.append(HTTPParser.SPACE)
@@ -92,8 +94,8 @@ def _parse_request_line(request_line: bytes) -> RequestLine:
 
     components = request_line.split()
     request_line_parsed: RequestLine = {
-        "method": methods.get(components[0], HTTPMethods.UNKNOWN),
+        "method": METHODS_MAPPING.get(components[0], HTTPMethods.UNKNOWN),
         "url": str(components[1], encoding="ascii"),
-        "version": versions.get(components[2], HTTPVersions.UNKNOWN),
+        "version": VERSIONS_MAPPING.get(components[2], HTTPVersions.UNKNOWN),
     }
     return request_line_parsed

@@ -1,7 +1,8 @@
 import json
 from typing import Any
 
-from http_parser.constants import HTTPVersions, status_codes_phrases
+from http_parser.constants import HTTPVersions, STATUS_CODE_MAPPING
+from http import HTTPStatus
 
 """
 HTTP RESPONE FORMAT
@@ -19,8 +20,7 @@ class Response:
 
         self.version = version
         self.data: Any = None
-        self._status_code = 200
-        self.phrase = "OK"
+        self._status_code = HTTPStatus.OK
         self.headers = {
             "Content-Type": "text/html",
         }
@@ -28,16 +28,15 @@ class Response:
     @property
     def status_code(self):
 
-        return self._status_code
+        return self._status_code.value
 
     @status_code.setter
     def status_code(self, status_code: int):
 
         try:
-            self.phrase = status_codes_phrases[status_code]
+            self._status_code = STATUS_CODE_MAPPING[status_code]
         except KeyError:
             raise ValueError("invalid status code given")
-        self._status_code = status_code
 
     @property
     def raw(self) -> bytes:
@@ -48,7 +47,7 @@ class Response:
         if not self.data:
             return b""
 
-        if self.headers["Content-Type"] == "text/html":
+        if self.headers["Content-Type"] == "text/html" or self.headers["Content-Type"] == "text/plain":
             try:
                 # DOUBT: Are 'text/html' encoded in UTF-8?
                 return bytes(self.data, encoding="utf-8")
@@ -57,7 +56,8 @@ class Response:
                     f"'data' must be of type 'str' if content type is text/html")
 
         if self.headers["Content-Type"] == "application/json":
-            json_str = json.dumps(self.data)
-            return bytes(json_str, encoding="utf-8")
+            json_bytes = bytes(json.dumps(self.data), encoding="utf-8")
+            self.headers["Content-Length"] = str(len(json_bytes))
+            return json_bytes
 
         raise ValueError("invalid Content-Type")
