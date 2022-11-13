@@ -1,4 +1,3 @@
-from typing import Tuple
 
 from http_parser.request import Request
 from http_parser.response import Response
@@ -18,41 +17,26 @@ DATA
 class HTTPParser:
 
     CARRIAGE_NEWLINE = b"\r\n"
-    NEWLINE = b"\n"
+    HEADER_DELIMITER = b": "
+    DOUBLE_CARRIAGE_NEWLINE = b"\r\n\r\n"
     SPACE = b" "
-    NEWLINE_INT = b"\n"[0]
 
     @staticmethod
     def deserialize_request(request: bytes) -> Request:
 
-        request_line_end = request.find(HTTPParser.CARRIAGE_NEWLINE)
-        request_line_details = _parse_request_line(request[:request_line_end])
-        headers_start = request_line_end + 2  # Skipping the \r\n
-
-        # No headers
-        if request[headers_start:headers_start+2] == HTTPParser.CARRIAGE_NEWLINE:
-            headers = None
-            # Add 2 to ignore the \r\n
-            data_start = headers_start + 2
-        else:
-            # The returned data_start is the index of the start of the
-            # data with respect to the start of the headers since
-            # only the data from headers onwards is being passed
-            headers, data_start = _parse_headers(request[headers_start:])
-            data_start += headers_start
-
-        # No data
-        if data_start >= len(request):
-            data = None
-        else:
-            data = request[data_start:]
+        request_metadata, data = request.split(
+            HTTPParser.DOUBLE_CARRIAGE_NEWLINE, 1)
+        request_metadata_lines = request_metadata.split(
+            HTTPParser.CARRIAGE_NEWLINE)
+        request_line_details = _parse_request_line(request_metadata_lines[0])
+        headers = _parse_headers(request_metadata_lines[1:])
 
         return Request(
             request_line_details["method"],
             request_line_details["url"],
             request_line_details["version"],
-            headers=headers,
-            data=data,
+            headers=headers if headers else None,
+            data=data if data else None,
         )
 
     @staticmethod
@@ -94,43 +78,22 @@ def _serialize_headers(headers: dict[str, str]) -> bytes:
     return b"".join(serialized_headers)
 
 
-def _parse_headers(req: bytes) -> Tuple[dict[str, str], int]:
+def _parse_headers(headers: list[bytes]) -> dict[str, str]:
 
-    headers: dict[str, str] = {}
-    header_end = req.find(HTTPParser.CARRIAGE_NEWLINE)
-    header_start = 0
-    while True:
-        header = req[header_start:header_end]
-        name_value_seperator_idx = header.find(HTTPParser.SPACE)
-        # Subtract 1 to get rid of the ':'
-        header_name = str(
-            header[: name_value_seperator_idx - 1], encoding="ascii")
-        # Add 1 to not include the space
-        header_value = str(
-            header[name_value_seperator_idx + 1:], encoding="ascii")
-        headers[header_name] = header_value
-        header_start = header_end + 2  # Skipping \r\n
-        # Marks the end of the headers
-        if req[header_start:header_start+2] == HTTPParser.CARRIAGE_NEWLINE:
-            break
-        header_end = req.find(HTTPParser.CARRIAGE_NEWLINE, header_start)
-    # Header start would be the '\r\n' after the headers
-    # Add 2 to that to get the starting index of the data if
-    # present
-    return (headers, header_start + 2)
+    parsed_headers: dict[str, str] = {}
+    for header in headers:
+        header_components = [str(component, encoding="ascii")
+                             for component in header.split(HTTPParser.HEADER_DELIMITER, 1)]
+        parsed_headers[header_components[0]] = header_components[1]
+    return parsed_headers
 
 
 def _parse_request_line(request_line: bytes) -> RequestLine:
 
-    method_end = request_line.find(HTTPParser.SPACE)
-    method = methods.get(request_line[:method_end], HTTPMethods.UNKNOWN)
-    url_end = request_line.find(HTTPParser.SPACE, method_end + 1)
-    url = str(request_line[method_end + 1: url_end], encoding="ascii")
-    version = versions.get(request_line[url_end + 1:], HTTPVersions.UNKNOWN)
-
+    components = request_line.split()
     request_line_parsed: RequestLine = {
-        "method": method,
-        "url": url,
-        "version": version,
+        "method": methods.get(components[0], HTTPMethods.UNKNOWN),
+        "url": str(components[1], encoding="ascii"),
+        "version": versions.get(components[2], HTTPVersions.UNKNOWN),
     }
     return request_line_parsed
