@@ -16,14 +16,15 @@ data
 
 class Response:
 
-    def __init__(self, version: HTTPVersions, headers: dict[str, str] | None = None):
+    def __init__(self, version: HTTPVersions, headers: dict[str, str] | None = None, status_code: HTTPStatus = HTTPStatus.OK):
 
         self.version = version
         self.data: Any = None
-        self._status_code = HTTPStatus.OK
-        self.headers = {
-            "Content-Type": "text/html",
-        }
+        self._status_code = status_code
+        if headers is None:
+            self.headers = {"Content-Type": "application/json", }
+        else:
+            self.headers = headers
 
     @property
     def status_code(self):
