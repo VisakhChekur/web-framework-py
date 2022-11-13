@@ -13,7 +13,7 @@ class Server:
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def receive(self, hostname: str, port: int, tcp_connections_limit: int=5):
+    def receive(self, hostname: str, port: int, tcp_connections_limit: int = 5):
 
         self._socket.bind((hostname, port))
         self._socket.listen(tcp_connections_limit)
@@ -39,7 +39,11 @@ class Server:
     def send_message(socket_msg: SocketMessage):
 
         logger.debug("sending message")
-        socket_msg.conn.sendall(socket_msg.message)
+        MSG_LEN = len(socket_msg.message)
+        sent_bytes_len = 0
+        while sent_bytes_len < MSG_LEN:
+            sent_bytes = socket_msg.conn.send(socket_msg.message)
+            sent_bytes_len += sent_bytes
         logger.debug("successfully sent message")
         logger.debug("closing connection")
         socket_msg.conn.close()

@@ -28,13 +28,13 @@ class HTTPParser:
             HTTPParser.DOUBLE_CARRIAGE_NEWLINE, 1)
         request_metadata_lines = request_metadata.split(
             HTTPParser.CARRIAGE_NEWLINE)
-        request_line_details = _parse_request_line(request_metadata_lines[0])
+        request_line = _parse_request_line(request_metadata_lines[0])
         headers = _parse_headers(request_metadata_lines[1:])
 
         return Request(
-            request_line_details["method"],
-            request_line_details["url"],
-            request_line_details["version"],
+            request_line["method"],
+            request_line["url"],
+            request_line["version"],
             headers=headers if headers else None,
             data=data if data else None,
         )
