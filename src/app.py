@@ -41,6 +41,8 @@ class App:
                 raise TypeError(
                     f"controller must be an instance of a class that inherits from BaseController")
             controller_name = controller.__class__.__name__.lower()
+            if controller_name == "home":
+                controller_name = ""
             self._controllers[controller_name] = controller
 
     def _route_request(self, request: Request) -> Response:
