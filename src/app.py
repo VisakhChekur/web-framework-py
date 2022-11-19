@@ -57,8 +57,6 @@ class App:
                 raise TypeError(
                     f"controller must be an instance of a class that inherits from BaseController")
             controller_name = controller.__class__.__name__.lower()
-            if controller_name == "home":
-                controller_name = ""
             self._controllers[controller_name] = controller
 
     def _register_path(self, path: str, methods: list[str] | None, func: ROUTED_METHOD):
@@ -81,7 +79,7 @@ class App:
         class_in_route[path] = {"func": func, "methods": mapped_methods}
 
     def _methods_path_register(self, methods: list[str] | None, func: ROUTED_METHOD) -> list[HTTPMethods]:
-        """Maps the given methods to the HTTPMethods."""
+        """Takes the list given methods and returns a list of the HTTPMethods."""
 
         try:
             if methods:
@@ -89,6 +87,8 @@ class App:
         except KeyError:
             raise ValueError(
                 f"invalid values found in methods for '{func.__qualname__}'")
+        # in case the methods aren't provided in the decorator but is instead
+        # implied in the name of the method
         try:
             return [METHODS_MAPPING_STR[func.__name__.upper()]]
         except KeyError:
